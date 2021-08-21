@@ -8,11 +8,11 @@ using namespace std;
 class Section {
 
 public:
-	int getID();
+
 	std::string getSectionName();
 	int getSectionSize();
 
-	void setId(int _id);
+
 	void setSectionName(std::string _sectionName);
 	void setSectionSize(int _sectionSize);
 	void increaseSize(int size);

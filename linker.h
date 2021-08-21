@@ -5,7 +5,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-
+#include <set>
 
 #include "section.h"
 
@@ -30,6 +30,7 @@ public:
 		int numberID;
 		bool isDefinedAlready;
 		string symbolSection;
+		bool isSymbol;
 
 	};
 
@@ -57,6 +58,8 @@ public:
 
 	bool mode; // hex =0 , linkable=1;
 
+	set<string> symbolSet;
+
 	vector<pair<string, int>> placeSections;
 
 	set<string> sectionSet;//sve sekcije u setu
@@ -76,6 +79,7 @@ public:
 
 	void makeSectionHelper();
 	void mergeSections();
+	void mergeSymbolTable();
 
 	void printSectionMap(map<string, Section> sectionMap, vector <RelocationRecord> relocationTable);
 

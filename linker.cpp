@@ -36,7 +36,7 @@ void Linker::readBinaryFile(string fileName)
 
 	string s1, s2, s3;
 	int i1, i2, i3, i4;
-	bool b1;
+	bool b1, b2;
 	int symbolTableSize;
 	inputFile.read((char*)&symbolTableSize, sizeof(symbolTableSize)); //velicina tablee sim
 
@@ -61,6 +61,8 @@ void Linker::readBinaryFile(string fileName)
 		s3.resize(stringLenght);
 		inputFile.read((char*)s3.c_str(), stringLenght);
 
+		inputFile.read((char*)&b2, sizeof(b1));
+
 		std::cout << s1 << "\t" << i1 << "\t" << s2 << "\t" << i2 << "\t" << b1 << "\t" << s3 << endl;
 
 		Symbol tempSymbol;
@@ -69,7 +71,7 @@ void Linker::readBinaryFile(string fileName)
 		tempSymbol.symbolScope = s2;
 		tempSymbol.numberID = i2;
 		tempSymbol.symbolSection = s1;
-
+		tempSymbol.isSymbol = b2;
 		allSymbolTables[fileName].push_back(tempSymbol);
 	}
 
@@ -212,7 +214,7 @@ void Linker::makeSectionHelper()
 
 		//sectionsizeCounter ce ostati na desnoj velicini tj znace se gde pocinje sledeca
 
-		int flag;
+		int flag = 0;
 		for (auto& section : sectionSet)
 		{
 			for (auto& i : placeSections)
@@ -303,6 +305,54 @@ void Linker::mergeSections()
 
 }
 
+void Linker::mergeSymbolTable()
+{
+	for (auto& i : allSymbolTables)
+	{
+		for (auto& symbol : i.second)
+		{
+			symbolSet.insert(symbol.symbolName);
+
+		}
+	}
+	//TREBA RESITI SLUCAJ AKO JE SEKCIJA I UBACITI SEKCIJE !!!!!!
+
+	int symDefNumber = 0;
+
+	for (auto& symbolName : symbolSet)
+	{
+
+		for (auto& i : allSymbolTables)//trci kroz sve tabele
+		{
+			for (auto& currSymbol : i.second) //trci kroz vektor simbola ALI U JEDNOM FAJLU
+			{
+				if (currSymbol.isSymbol) {
+
+					if (symbolName == currSymbol.symbolName) // ako si nabo simbol 
+					{
+						if (currSymbol.symbolSection != "UNDEFINED") symDefNumber++;
+						else break; // valjda
+						if (symDefNumber == 2) cout << "visestruko definisani simbol";
+
+						for (auto& vectorCurr : sectionHelpVector)
+						{
+							if (vectorCurr.fileName == i.first && vectorCurr.sectionName == currSymbol.symbolSection)//nabodi fajl
+							{
+								currSymbol.value = vectorCurr.leftBound + currSymbol.value;// proveriti ovo
+								outputSymbolTable.push_back(currSymbol);
+							}
+						}
+
+					}
+				}
+			}
+		}
+		symDefNumber = 0;
+		//outputSymbolTable.push
+	}
+
+
+}
 
 void Linker::printSectionMap(map<string, Section> sectionMap, vector <RelocationRecord> relocationTable)
 {

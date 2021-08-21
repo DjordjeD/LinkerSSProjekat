@@ -11,6 +11,10 @@ int main(int argc, char** argv) {
 
 	linker.readBinaryFile("");
 
+	linker.makeSectionHelper();
+	linker.mergeSections();
+
+
 
 
 }
