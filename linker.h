@@ -13,12 +13,7 @@ using namespace std;
 
 class Linker {
 
-
-
 public:
-
-
-
 
 	struct Symbol {
 
@@ -68,9 +63,9 @@ public:
 	vector<Section> outputSectionList;
 	vector<Symbol> outputSymbolTable;
 	vector<RelocationRecord> outputRelocationTable;
-	map<string, Section> outputSectionMap;
+	map<string, Section> outputSectionMap; //ime sekcije i sekcija class
 
-	map<string, map<string, Section>> allSectionMaps;
+	map<string, map<string, Section>> allSectionMaps;//ime fajla , ime sekcije, sekcija class
 	map<string, vector<RelocationRecord>> allRelocationRecords;
 	map<string, vector<Symbol>> allSymbolTables;
 
@@ -80,7 +75,18 @@ public:
 	void makeSectionHelper();
 	void mergeSections();
 	void mergeSymbolTable();
+	void mergeRelocations();
+	void mergeDataSections();
+	void fixRelocationData();
+
+	void print();
 
 	void printSectionMap(map<string, Section> sectionMap, vector <RelocationRecord> relocationTable);
+	void printSectionList();
+	void printSymbolTable();
+
+	void txtSectionMap(map<string, Section> sectionMap, vector <RelocationRecord> relocationTable);
+
+	void makeTxtFile();
 
 };

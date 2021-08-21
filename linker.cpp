@@ -26,9 +26,9 @@ void Linker::readAllBinaryFiles(vector<string> fileNames)
 
 void Linker::readBinaryFile(string fileName)
 {
-	ifstream inputFile("inputBinary", ios::out | ios::binary);
+	ifstream inputFile(fileName, ios::out | ios::binary);
 
-	fileName = "inputBinary";
+	//fileName = "inputBinary";
 
 	unsigned int stringLenght;
 	int intValue;
@@ -101,7 +101,7 @@ void Linker::readBinaryFile(string fileName)
 		inputFile.read((char*)temp.symbolName.c_str(), stringLenght);
 
 		//std::cout << temp.isData << "\t" << temp.offset << "\t" << temp.sectionName << "\t" << temp.relocationType << "\t" << temp.symbolName << endl;
-
+		temp.fileName = fileName;
 		allRelocationRecords[fileName].push_back(temp);
 	}
 
@@ -157,7 +157,7 @@ void Linker::readBinaryFile(string fileName)
 		//cout << endl;
 	}
 
-	printSectionMap(smallMap, allRelocationRecords[fileName]);
+	//printSectionMap(smallMap, allRelocationRecords[fileName]);
 
 	allSectionMaps[fileName] = smallMap;
 
@@ -332,7 +332,7 @@ void Linker::mergeSymbolTable()
 					{
 						if (currSymbol.symbolSection != "UNDEFINED") symDefNumber++;
 						else break; // valjda
-						if (symDefNumber == 2) cout << "visestruko definisani simbol";
+						if (symDefNumber == 2) cout << "visestruko definisani simbol" << currSymbol.symbolName << endl;
 
 						for (auto& vectorCurr : sectionHelpVector)
 						{
@@ -352,6 +352,203 @@ void Linker::mergeSymbolTable()
 	}
 
 
+}
+
+void Linker::mergeRelocations()
+{
+
+	for (auto& relocationRecordMap : allRelocationRecords)//trci kroz fajlove
+	{
+		for (auto& relocationRecord : relocationRecordMap.second)
+		{
+			for (auto& helper : sectionHelpVector)
+			{
+				if (relocationRecord.sectionName == helper.sectionName && relocationRecordMap.first == relocationRecord.fileName)
+				{
+					if (mode == 0) //hex
+						relocationRecord.offset += helper.leftBound;
+					else {
+
+						int VA;
+
+						for (auto& i : outputSectionList)
+						{
+							if (i.getSectionName() == relocationRecord.sectionName)
+							{
+								VA = i.virtualAddress; // uzmi virtuelnu adresu
+							}
+						}
+
+						relocationRecord.offset = relocationRecord.offset + helper.leftBound - VA;
+						if (relocationRecord.offset < 0) cout << "greska offset u minusu" << endl;
+					}
+					outputRelocationTable.push_back(relocationRecord);
+				}
+			}
+		}
+	}
+
+
+}
+
+void Linker::mergeDataSections()//zamislio sam da ih spoji sve 
+{
+	for (auto& fileName : allSectionMaps)// kroz fajlove
+	{
+		for (auto& smallSectionMap : fileName.second)// kroz malu mapu
+		{
+			if (smallSectionMap.second.getSectionName() == "UNDEFINED" || smallSectionMap.second.getSectionName() == "ABSOLUTE" || smallSectionMap.second.getSectionSize() == 0) continue;
+
+			int increaseOffset = 0;
+			for (auto& section : sectionHelpVector)
+			{
+				if (smallSectionMap.second.getSectionName() == section.sectionName && section.fileName == fileName.first)
+				{
+					increaseOffset = section.leftBound; // vidi za koliko  treba da se poveca offset
+				}
+			}
+
+			for (auto& i : smallSectionMap.second.offsets)//svaki offset povecaj
+			{
+
+				i += increaseOffset;
+			}
+			outputSectionMap[smallSectionMap.first] = smallSectionMap.second; // ubaci u konacu
+		}
+
+	}
+
+
+
+}
+
+void Linker::fixRelocationData()
+{
+	for (auto& relocationData : outputRelocationTable)
+	{
+		int findOffset = relocationData.offset;
+
+		for (auto& i : outputSectionMap)
+		{
+			if (i.first == relocationData.sectionName)
+			{
+				for (size_t j = 0; j < i.second.offsets.size(); j++) //j iterira po redovima jer isto ima offseta i redova
+				{
+					//cout << hex << setfill('0') << setw(4) << i.second.offsets.at(j) << " : " << "\t";
+
+					if (i.second.offsets.at(j) <= findOffset && findOffset <= i.second.offsets.at(j) + 4) // ako si nabo gde je taj offset
+					{
+						int lineBegin = i.second.offsets.at(j);
+						int first = findOffset - lineBegin;
+						int second = findOffset - lineBegin + 1;
+						int value;
+						//izvuci value 
+
+						if (relocationData.isData)
+						{
+							value = (int)((i.second.data[j][second] << 8) + (0xff & i.second.data[j][first]));
+						}
+						else
+						{
+							value = (int)((i.second.data[j][first] << 8) + (0xff & i.second.data[j][second]));
+						}
+
+
+
+
+						bool isSymbol = true;
+						for (auto& i : sectionSet)
+						{
+							if (i == relocationData.symbolName) isSymbol = false;
+						}
+
+						if (relocationData.relocationType == "R_HYP_16") //apsolutno
+						{
+
+							if (isSymbol) {
+								for (auto& symbol : outputSymbolTable)
+								{
+									if (symbol.symbolName == relocationData.symbolName)
+									{
+										value = value + symbol.value;
+										//vrati data nazad;
+
+									}
+								}
+								i.second.data[j][first] = (0xff & (value));
+								i.second.data[j][first] = (0xff & (value >> 8));
+							}
+							else {
+
+								for (auto& i : sectionHelpVector)
+								{
+									if (i.fileName == relocationData.fileName && i.sectionName == relocationData.sectionName)
+									{
+										value = value + i.leftBound;
+										//varti value
+
+									}
+								}
+
+								i.second.data[j][first] = (0xff & (value));
+								i.second.data[j][first] = (0xff & (value >> 8));
+							}
+
+						}
+						else if (relocationData.relocationType == "R_HYP_16_PC") //pcrelative
+						{
+
+
+							// ako je simbol
+							if (isSymbol) {
+								for (auto& symbol : outputSymbolTable)
+								{
+									if (symbol.symbolName == relocationData.symbolName)
+									{
+										value = value + symbol.value - relocationData.offset;
+
+										//vrati data nazad;
+
+									}
+								}
+								i.second.data[j][first] = (0xff & (value));
+								i.second.data[j][first] = (0xff & (value >> 8));
+
+							}
+							else {
+
+
+								for (auto& i : sectionHelpVector)
+								{
+									if (i.fileName == relocationData.fileName && i.sectionName == relocationData.sectionName)
+									{
+										value = value + i.leftBound - relocationData.offset;
+										//varti value
+
+									}
+								}
+								i.second.data[j][first] = (0xff & (value));
+								i.second.data[j][first] = (0xff & (value >> 8));
+							}
+						}
+
+						break;//treba break zbog toga sto mozda udje dva puta
+					}
+
+				}
+			}
+		}
+
+	}
+
+}
+
+void Linker::print()
+{
+
+	printSectionMap(outputSectionMap, outputRelocationTable);
+	printSectionList();
+	printSymbolTable();
 }
 
 void Linker::printSectionMap(map<string, Section> sectionMap, vector <RelocationRecord> relocationTable)
@@ -389,5 +586,95 @@ void Linker::printSectionMap(map<string, Section> sectionMap, vector <Relocation
 		cout << endl << endl;
 	}
 
+}
+
+void Linker::printSectionList()
+{
+	cout << "Section LIST " << endl;
+	cout << "ID\t Section\t Size" << endl;
+	for (auto& i : outputSectionList)
+	{
+		cout << hex << "\t" << i.getSectionName() << "\t" << i.getSectionSize() << "\t" << i.virtualAddress << endl;
+	}
+}
+
+void Linker::printSymbolTable()
+{
+
+	cout << "Symbol table:" << endl;
+	cout << "Value\tType\tSection\t\tName\t\tId" << endl;
+
+	for (auto& i : outputSymbolTable)
+	{
+		cout << hex << i.value << "\t " << i.symbolScope << "\t " << i.symbolSection << "\t " << i.symbolName << "\t " << i.numberID << endl;
+	}
+	cout << endl << " END OF SYMBOL TABLE" << endl << endl;
+
+}
+
+void Linker::txtSectionMap(map<string, Section> sectionMap, vector<RelocationRecord> relocationTable)
+{
+	ofstream outputFile("output.txt");
+
+
+	outputFile << endl;
+	for (auto& i : sectionMap)
+	{
+		outputFile << "Section data of " << i.first << " :" << endl;
+
+		for (size_t j = 0; j < i.second.offsets.size(); j++) //j iterira po redovima jer isto ima offseta i redova
+		{
+			outputFile << hex << setfill('0') << setw(4) << i.second.offsets.at(j) << " : " << "\t";
+
+			for (size_t k = 0; k < i.second.data[j].size(); k++)
+			{
+				outputFile << hex << setfill('0') << setw(2) << (0xff & i.second.data[j][k]) << " ";
+			}
+
+			outputFile << endl;
+		}
+
+		outputFile << endl;
+
+		outputFile << "Relocation for " << i.first << endl;
+		outputFile << "Offset " << "\t" << "IsData" << "\t" << "relocationType" << "\t" << "sectionName" << "\t" << "symbolName(value)" << endl;
+		for (auto& j : relocationTable)
+		{
+
+			if (i.first == j.sectionName) {
+
+
+				outputFile << j.offset << "\t" << j.isData << "\t" << j.relocationType << "\t" << j.sectionName << "\t\t" << j.symbolName << endl;
+			}
+		}
+		outputFile << endl << endl;
+	}
+	outputFile.close();
+}
+
+void Linker::makeTxtFile()
+{
+	ofstream outputFile("outputLinker.txt");
+
+	outputFile << "Section LIST " << endl;
+	outputFile << "ID\t Section\t Size" << endl;
+	for (auto& i : outputSectionList)
+	{
+		outputFile << hex << "\t" << i.getSectionName() << "\t" << i.getSectionSize() << "\t" << i.virtualAddress << endl;
+	}
+
+
+	outputFile << "Symbol table:" << endl;
+	outputFile << "Value\tType\tSection\t\tName\t\tId" << endl;
+
+	for (auto& i : outputSymbolTable)
+	{
+		outputFile << hex << i.value << "\t " << i.symbolScope << "\t " << i.symbolSection << "\t " << i.symbolName << "\t " << i.numberID << endl;
+	}
+	outputFile << endl << " END OF SYMBOL TABLE" << endl << endl;
+
+	txtSectionMap(outputSectionMap, outputRelocationTable);
+
+	outputFile.close();
 }
 
