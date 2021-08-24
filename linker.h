@@ -51,7 +51,7 @@ public:
 
 	};
 
-	bool mode; // hex =0 , linkable=1;
+	bool mode = false; // hex =0 , linkable=1;
 
 	set<string> symbolSet;
 
