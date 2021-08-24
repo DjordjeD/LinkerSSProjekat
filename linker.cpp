@@ -61,7 +61,7 @@ void Linker::readBinaryFile(string fileName)
 		s3.resize(stringLenght);
 		inputFile.read((char*)s3.c_str(), stringLenght);
 
-		inputFile.read((char*)&b2, sizeof(b1));
+		inputFile.read((char*)&b2, sizeof(b2));
 
 		std::cout << s1 << "\t" << i1 << "\t" << s2 << "\t" << i2 << "\t" << b1 << "\t" << s3 << endl;
 
@@ -70,7 +70,7 @@ void Linker::readBinaryFile(string fileName)
 		tempSymbol.value = i1;
 		tempSymbol.symbolScope = s2;
 		tempSymbol.numberID = i2;
-		tempSymbol.symbolSection = s1;
+		tempSymbol.symbolSection = s3;
 		tempSymbol.isSymbol = b2;
 		allSymbolTables[fileName].push_back(tempSymbol);
 	}
@@ -173,8 +173,8 @@ void Linker::makeSectionHelper()
 
 		for (auto& j : i.second)
 		{
-			if (j.second.getSectionName() == "UNDEFINED" || j.second.getSectionName() == "ABSOLUTE") cout << "absolute or undefined" << endl;
-			else sectionSet.insert(j.first);
+			/*if (j.second.getSectionName() == "UNDEFINED" || j.second.getSectionName() == "ABSOLUTE") cout << "absolute or undefined" << endl;
+			else*/ sectionSet.insert(j.first);
 		}
 	}
 
@@ -199,12 +199,13 @@ void Linker::makeSectionHelper()
 
 						temp.fileName = j.first;// ime fajla
 						temp.sectionName = sectionName.first; //ime sekcije
-						temp.leftBound = sectionSizeCounter; //velicina levog virtuelna memorija
 						temp.size = i.second.getSectionSize(); //velicina sekcije
-						temp.rightBound = temp.leftBound + temp.size;
+						if (i.first != "UNDEFINED" && i.first != "ABSOLUTE") {
+							temp.leftBound = sectionSizeCounter; //velicina levog virtuelna memorija
+							temp.rightBound = temp.leftBound + temp.size;
 
-						sectionSizeCounter += temp.size; //pomeri ga na desno
-
+							sectionSizeCounter += temp.size; //pomeri ga na desno
+						}
 						sectionHelpVector.push_back(temp);
 						break;
 					}
@@ -226,20 +227,23 @@ void Linker::makeSectionHelper()
 
 			for (auto& j : allSectionMaps)// kroz fajlove
 			{
+
 				for (auto& i : j.second)//kroz mapu sekcija 
 				{
+
 					if (i.first == section)
 					{
 						SectionHelp temp;
 
 						temp.fileName = j.first;// ime fajla
 						temp.sectionName = section; //ime sekcije
-						temp.leftBound = sectionSizeCounter; //velicina levog
 						temp.size = i.second.getSectionSize(); //velicina sekcije
-						temp.rightBound = temp.leftBound + temp.size;
+						if (i.first != "UNDEFINED" && i.first != "ABSOLUTE") {
+							temp.leftBound = sectionSizeCounter; //velicina levog virtuelna memorija
+							temp.rightBound = temp.leftBound + temp.size;
 
-						sectionSizeCounter += temp.size;
-
+							sectionSizeCounter += temp.size; //pomeri ga na desno
+						}
 						sectionHelpVector.push_back(temp);
 						break;
 					}
@@ -261,17 +265,20 @@ void Linker::makeSectionHelper()
 			{
 				for (auto& i : j.second)//kroz mapu sekcija 
 				{
+
 					if (i.first == sectionName)
 					{
 						SectionHelp temp;
 
 						temp.fileName = j.first;// ime fajla
 						temp.sectionName = sectionName; //ime sekcije
-						temp.leftBound = sectionSizeCounter; //velicina levog
 						temp.size = i.second.getSectionSize(); //velicina sekcije
-						temp.rightBound = temp.leftBound + temp.size;
+						if (i.first != "UNDEFINED" && i.first != "ABSOLUTE") {
+							temp.leftBound = sectionSizeCounter; //velicina levog virtuelna memorija
+							temp.rightBound = temp.leftBound + temp.size;
 
-						sectionSizeCounter += temp.size;
+							sectionSizeCounter += temp.size; //pomeri ga na desno
+						}
 
 						sectionHelpVector.push_back(temp);
 						break;
@@ -294,8 +301,8 @@ void Linker::mergeSections()
 		{
 			if (section == sectionHelper.sectionName)
 			{
-				if (cnt++ == 0) temp.virtualAddress = sectionHelper.leftBound; // daj mu virtuelnu adresu najprvljeg 
-				temp.increaseSize(sectionHelper.size);
+				if (cnt++ == 0 && section != "ABSOLUTE" && section != "UNDEFINED") temp.virtualAddress = sectionHelper.leftBound; // daj mu virtuelnu adresu najprvljeg 
+				if (section != "ABSOLUTE" && section != "UNDEFINED")temp.increaseSize(sectionHelper.size);
 			}
 		}
 		cnt = 0;
@@ -344,6 +351,9 @@ void Linker::mergeSymbolTable()
 						}
 
 					}
+				}
+				else {
+					//dodaj sekcije
 				}
 			}
 		}
@@ -436,11 +446,13 @@ void Linker::fixRelocationData()
 				{
 					//cout << hex << setfill('0') << setw(4) << i.second.offsets.at(j) << " : " << "\t";
 
-					if (i.second.offsets.at(j) <= findOffset && findOffset <= i.second.offsets.at(j) + 4) // ako si nabo gde je taj offset
+					if (i.second.offsets.at(j) == findOffset)  // ako si nabo gde je taj offset
 					{
+						//if (i.second.offsets.at(j) <= findOffset && findOffset < i.second.offsets.at(j) + 4)){
 						int lineBegin = i.second.offsets.at(j);
-						int first = findOffset - lineBegin;
-						int second = findOffset - lineBegin + 1;
+						int first = 0;
+						int second = 1;
+
 						int value;
 						//izvuci value 
 
@@ -476,7 +488,7 @@ void Linker::fixRelocationData()
 									}
 								}
 								i.second.data[j][first] = (0xff & (value));
-								i.second.data[j][first] = (0xff & (value >> 8));
+								i.second.data[j][second] = (0xff & (value >> 8));
 							}
 							else {
 
@@ -491,7 +503,7 @@ void Linker::fixRelocationData()
 								}
 
 								i.second.data[j][first] = (0xff & (value));
-								i.second.data[j][first] = (0xff & (value >> 8));
+								i.second.data[j][second] = (0xff & (value >> 8));
 							}
 
 						}
@@ -512,7 +524,7 @@ void Linker::fixRelocationData()
 									}
 								}
 								i.second.data[j][first] = (0xff & (value));
-								i.second.data[j][first] = (0xff & (value >> 8));
+								i.second.data[j][second] = (0xff & (value >> 8));
 
 							}
 							else {
@@ -528,20 +540,118 @@ void Linker::fixRelocationData()
 									}
 								}
 								i.second.data[j][first] = (0xff & (value));
-								i.second.data[j][first] = (0xff & (value >> 8));
+								i.second.data[j][second] = (0xff & (value >> 8));
 							}
 						}
-
-						break;//treba break zbog toga sto mozda udje dva puta
 					}
+					//break;//treba break zbog toga sto mozda udje dva puta
+					else if (i.second.offsets.at(j) <= findOffset && findOffset < i.second.offsets.at(j)) {
+						int lineBegin = i.second.offsets.at(j);
+						int first = findOffset - lineBegin - 1;
+						int second = findOffset - lineBegin;
+						if (first < 0) {
+							first = 0; second = 1;
+						}
+						int value;
+						//izvuci value 
 
+						if (relocationData.isData)
+						{
+							value = (int)((i.second.data[j][second] << 8) + (0xff & i.second.data[j][first]));
+						}
+						else
+						{
+							value = (int)((i.second.data[j][first] << 8) + (0xff & i.second.data[j][second]));
+						}
+
+
+
+
+						bool isSymbol = true;
+						for (auto& i : sectionSet)
+						{
+							if (i == relocationData.symbolName) isSymbol = false;
+						}
+
+						if (relocationData.relocationType == "R_HYP_16") //apsolutno
+						{
+
+							if (isSymbol) {
+								for (auto& symbol : outputSymbolTable)
+								{
+									if (symbol.symbolName == relocationData.symbolName)
+									{
+										value = value + symbol.value;
+										//vrati data nazad;
+
+									}
+								}
+								i.second.data[j][first] = (0xff & (value));
+								i.second.data[j][second] = (0xff & (value >> 8));
+							}
+							else {
+
+								for (auto& i : sectionHelpVector)
+								{
+									if (i.fileName == relocationData.fileName && i.sectionName == relocationData.sectionName)
+									{
+										value = value + i.leftBound;
+										//varti value
+
+									}
+								}
+
+								i.second.data[j][first] = (0xff & (value));
+								i.second.data[j][second] = (0xff & (value >> 8));
+							}
+
+						}
+						else if (relocationData.relocationType == "R_HYP_16_PC") //pcrelative
+						{
+
+
+							// ako je simbol
+							if (isSymbol) {
+								for (auto& symbol : outputSymbolTable)
+								{
+									if (symbol.symbolName == relocationData.symbolName)
+									{
+										value = value + symbol.value - relocationData.offset;
+
+										//vrati data nazad;
+
+									}
+								}
+								i.second.data[j][first] = (0xff & (value));
+								i.second.data[j][second] = (0xff & (value >> 8));
+
+							}
+							else {
+
+
+								for (auto& i : sectionHelpVector)
+								{
+									if (i.fileName == relocationData.fileName && i.sectionName == relocationData.sectionName)
+									{
+										value = value + i.leftBound - relocationData.offset;
+										//varti value
+
+									}
+								}
+								i.second.data[j][first] = (0xff & (value));
+								i.second.data[j][second] = (0xff & (value >> 8));
+							}
+						}
+					}
 				}
+
 			}
 		}
-
 	}
 
 }
+
+
 
 void Linker::print()
 {

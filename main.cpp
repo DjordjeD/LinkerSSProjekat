@@ -24,9 +24,10 @@ int main(int argc, char** argv) {
 	linker.makeSectionHelper();
 	linker.mergeSections();
 	linker.mergeRelocations();
+	linker.mergeSymbolTable();
 	linker.mergeDataSections();
 	linker.fixRelocationData();
 
 	linker.print();
-	linker.makeTxtFile();
+	//linker.makeTxtFile();
 }
