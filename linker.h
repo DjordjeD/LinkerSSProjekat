@@ -51,6 +51,8 @@ public:
 
 	};
 
+	Linker(string outputfile);
+
 	bool mode = false; // hex =0 , linkable=1;
 
 	set<string> symbolSet;
@@ -68,6 +70,8 @@ public:
 	map<string, map<string, Section>> allSectionMaps;//ime fajla , ime sekcije, sekcija class
 	map<string, vector<RelocationRecord>> allRelocationRecords;
 	map<string, vector<Symbol>> allSymbolTables;
+
+	string outputFile;
 
 	void readAllBinaryFiles(vector<string> fileNames);
 	void readBinaryFile(string file);

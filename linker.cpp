@@ -16,6 +16,11 @@
 //   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
 //   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
 
+Linker::Linker(string outputfile)
+{
+	outputFile = outputfile;
+}
+
 void Linker::readAllBinaryFiles(vector<string> fileNames)
 {
 	for (auto& i : fileNames)
@@ -424,9 +429,6 @@ void Linker::mergeRelocations()
 	}
 }
 
-
-
-
 void Linker::mergeDataSections()//zamislio sam da ih spoji sve 
 {
 	for (auto& fileName : allSectionMaps)// kroz fajlove
@@ -578,7 +580,7 @@ void Linker::fixRelocationData()
 						{
 							if (symbol.symbolName == relocationData.symbolName)
 							{
-								value = value + symbol.value - relocationData.offset; // ovo nije dobro vrv
+								value = value + symbol.value - relocationData.offset;// zbog big endian
 
 								//vrati data nazad;
 
@@ -590,6 +592,7 @@ void Linker::fixRelocationData()
 							i.second.data[row][second] = (0xff & (value >> 8));
 						}
 						else {
+							value += 1;
 							i.second.data[row][second] = (0xff & (value));
 							i.second.data[row][first] = (0xff & (value >> 8));
 						}
@@ -613,6 +616,7 @@ void Linker::fixRelocationData()
 							i.second.data[row][second] = (0xff & (value >> 8));
 						}
 						else {
+							value++;
 							i.second.data[row][second] = (0xff & (value));
 							i.second.data[row][first] = (0xff & (value >> 8));
 						}
@@ -630,8 +634,6 @@ void Linker::fixRelocationData()
 	}
 
 }
-
-
 
 void Linker::print()
 {
@@ -653,18 +655,6 @@ void Linker::printSectionMap(map<string, Section> sectionMap, vector <Relocation
 	for (auto& i : sectionMap)
 	{
 		cout << "Section data of " << i.first << " :" << endl;
-
-		//for (size_t j = 0; j < i.second.offsets.size(); j++) //j iterira po redovima jer isto ima offseta i redova
-		//{
-		//	//cout << hex << setfill('0') << setw(4) << i.second.offsets.at(j) << " : " << "\t";
-
-		//	for (size_t k = 0; k < i.second.data[j].size(); k++)
-		//	{
-		//		cout << hex << setfill('0') << setw(2) << (0xff & i.second.data[j][k]) << " ";
-		//	}
-
-		//	cout << endl;
-		//}
 
 		int cnt = 1;
 		cout << hex << setfill('0') << setw(4) << offsetCnt << " : " << "\t";
@@ -690,21 +680,9 @@ void Linker::printSectionMap(map<string, Section> sectionMap, vector <Relocation
 
 		cout << endl;
 
-		/*	cout << "Relocation for " << i.first << endl;
-			cout << "Offset " << "\t" << "IsData" << "\t" << "relocationType" << "\t" << "sectionName" << "\t" << "symbolName(value)" << endl;
-			for (auto& j : relocationTable)
-			{
-
-				if (i.first == j.sectionName) {
-
-
-					cout << j.offset << "\t" << j.isData << "\t" << j.relocationType << "\t" << j.sectionName << "\t\t" << j.symbolName << endl;
-				}
-			}
-			cout << endl << endl;*/
 	}
 
-	cout << endl << "NORMALAN ISPIS" << endl;
+	cout << endl << "LINKABLE ISPIS" << endl;
 	for (auto& i : sectionMap)
 	{
 		cout << "Section data of " << i.first << " :" << endl;
@@ -799,10 +777,20 @@ void Linker::txtSectionMap(map<string, Section> sectionMap, vector<RelocationRec
 
 void Linker::makeTxtFile()
 {
-	ofstream outputFile("outputLinker.txt");
+	string path = outputFile;
+	ofstream outputFile(path);
+
+	outputFile << "SECTION helper" << endl;
+	for (auto& i : sectionHelpVector)
+	{
+		outputFile << i.fileName << "\t" << i.sectionName << "\t" << hex << i.size << "\t" << "[" << i.leftBound << ", " << i.rightBound << ")" << endl;
+	}
+	outputFile << endl;
+
+
 
 	outputFile << "Section LIST " << endl;
-	outputFile << "ID\t Section\t Size" << endl;
+	outputFile << "Section\t Size\t VA" << endl;
 	for (auto& i : outputSectionList)
 	{
 		outputFile << hex << "\t" << i.getSectionName() << "\t" << i.getSectionSize() << "\t" << i.virtualAddress << endl;
@@ -818,7 +806,54 @@ void Linker::makeTxtFile()
 	}
 	outputFile << endl << " END OF SYMBOL TABLE" << endl << endl;
 
-	txtSectionMap(outputSectionMap, outputRelocationTable);
+	if (this->mode == 1)
+		txtSectionMap(outputSectionMap, outputRelocationTable);
+	else {
+
+
+		//outputFile << endl;
+		int offsetCnt = 0;
+		for (auto& i : outputSectionMap)
+		{
+			outputFile << "Section data of " << i.first << " :" << endl;
+
+			int cnt = 1;
+			outputFile << hex << setfill('0') << setw(4) << offsetCnt << " : " << "\t";
+			for (auto& i : i.second.data)
+			{
+				for (auto& j : i)
+				{
+					if (cnt++ <= 8)
+					{
+						outputFile << hex << setfill('0') << setw(2) << (0xff & j) << " ";
+						offsetCnt++;
+					}
+					else
+					{
+						outputFile << endl;
+						cnt = 2;
+						outputFile << hex << setfill('0') << setw(4) << offsetCnt++ << " : " << "\t";
+						outputFile << hex << setfill('0') << setw(2) << (0xff & j) << " ";
+
+					}
+				}
+			}
+
+			outputFile << endl;
+
+		}
+
+
+		outputFile << "Relocation table " << endl;
+		outputFile << "Offset " << "\t" << "IsData" << "\t" << "relocationType" << "\t" << "symbolName(value)" << "\t" << "sectionName" << endl;
+		for (auto& j : outputRelocationTable)
+		{
+			outputFile << hex << j.offset << "\t" << j.isData << "\t" << j.relocationType << "\t" << j.symbolName << "\t\t" << j.sectionName << endl;
+		}
+		outputFile << endl << endl;
+
+	}
+
 
 	outputFile.close();
 }
