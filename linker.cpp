@@ -456,6 +456,16 @@ void Linker::mergeDataSections()//zamislio sam da ih spoji sve
 
 	}
 
+	for (auto& i : outputSectionMap)//ubaci virtuelne adrese
+	{
+		for (auto& j : outputSectionList)
+		{
+			if (i.first == j.getSectionName())
+			{
+				i.second.virtualAddress = j.virtualAddress;
+			}
+		}
+	}
 
 
 }
@@ -657,6 +667,7 @@ void Linker::printSectionMap(map<string, Section> sectionMap, vector <Relocation
 		cout << "Section data of " << i.first << " :" << endl;
 
 		int cnt = 1;
+		offsetCnt = i.second.virtualAddress;
 		cout << hex << setfill('0') << setw(4) << offsetCnt << " : " << "\t";
 		for (auto& i : i.second.data)
 		{
@@ -818,6 +829,7 @@ void Linker::makeTxtFile()
 			outputFile << "Section data of " << i.first << " :" << endl;
 
 			int cnt = 1;
+			offsetCnt = i.second.virtualAddress;
 			outputFile << hex << setfill('0') << setw(4) << offsetCnt << " : " << "\t";
 			for (auto& i : i.second.data)
 			{

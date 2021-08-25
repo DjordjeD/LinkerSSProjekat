@@ -1,0 +1,70 @@
+SECTION helper
+inputBinary1	ivt	10	[0, 10)
+inputBinary1	isr	3e	[500, 53e)
+inputBinary1	ABSOLUTE	6	[cccccccc, cccccccc)
+inputBinary2	ABSOLUTE	2	[cccccccc, cccccccc)
+inputBinary1	UNDEFINED	0	[cccccccc, cccccccc)
+inputBinary2	UNDEFINED	0	[cccccccc, cccccccc)
+inputBinary2	myCode	1c	[53e, 55a)
+inputBinary2	myData	2	[55a, 55c)
+
+Section LIST 
+Section	 Size	 VA
+	ABSOLUTE	0	0
+	UNDEFINED	0	0
+	isr	3e	500
+	ivt	10	0
+	myCode	1c	53e
+	myData	2	55a
+Symbol table:
+Value	Type	Section		Name		Id
+0	 l	 ABSOLUTE	 ABSOLUTE	 ffffffff
+0	 l	 UNDEFINED	 UNDEFINED	 0
+54	 l	 ABSOLUTE	 asciiCode	 a
+500	 l	 isr	 isr	 7
+500	 l	 isr	 isr_reset	 2
+516	 l	 isr	 isr_terminal	 4
+505	 l	 isr	 isr_timer	 3
+0	 l	 ivt	 ivt	 1
+53e	 l	 myCode	 myCode	 3
+55a	 g	 myData	 myCounter	 2
+55a	 l	 myData	 myData	 6
+53e	 g	 myCode	 myStart	 1
+ff02	 l	 ABSOLUTE	 term_in	 9
+ff00	 l	 ABSOLUTE	 term_out	 8
+ff10	 l	 ABSOLUTE	 tim_cfg	 4
+548	 l	 myCode	 wait	 5
+
+ END OF SYMBOL TABLE
+
+Section data of isr :
+0500 : 	50 ff 00 05 3e b0 06 12 
+0508 : 	a0 0f 00 00 54 b0 0f 04 
+0510 : 	ff 00 a0 06 42 20 b0 06 
+0518 : 	12 b0 16 12 a0 0f 04 ff 
+0520 : 	02 b0 0f 04 ff 00 a0 07 
+0528 : 	03 00 2f a0 1f 00 00 01 
+0530 : 	70 01 b0 0f 04 05 5a a0 
+0538 : 	16 42 a0 06 42 20 
+Section data of ivt :
+0000 : 	00 05 00 00 05 05 16 05 
+0008 : 	00 00 00 00 00 00 00 00 
+Section data of myCode :
+053e : 	a0 0f 00 00 01 b0 0f 04 
+0546 : 	ff 10 a0 0f 04 05 5a a0 
+054e : 	1f 00 00 05 74 01 52 ff 
+0556 : 	00 05 48 00 
+Section data of myData :
+055a : 	00 00 
+Relocation table 
+Offset 	IsData	relocationType	symbolName(value)	sectionName
+0	1	R_HYP_16	isr		ivt
+4	1	R_HYP_16	isr		ivt
+6	1	R_HYP_16	isr		ivt
+504	0	R_HYP_16	myStart		isr
+52a	0	R_HYP_16_PC	myCounter		isr
+536	0	R_HYP_16	myCounter		isr
+54c	0	R_HYP_16	myCounter		myCode
+558	0	R_HYP_16	myCode		myCode
+
+
